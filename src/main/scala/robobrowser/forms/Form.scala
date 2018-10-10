@@ -1,9 +1,9 @@
 package robobrowser.forms
 
 import com.sun.javaws.exceptions.InvalidArgumentException
-import robobrowser.collection.SortedMultiMap
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
+import robobrowser.collection.SortedMultiMap
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -53,7 +53,9 @@ object Form {
     out.toList
   }
 
-  private def filterFields(fieldsMap: SortedMultiMap[String, BaseField[_]], x: BaseField[_] => Boolean): SortedMultiMap[String, BaseField[_]] = {
+  private def filterFields(fieldsMap: SortedMultiMap[String, BaseField[_]],
+                           x: BaseField[_] => Boolean): SortedMultiMap[String, BaseField[_]] = {
+
     val map = new SortedMultiMap[String, BaseField[_]]
     for ((name: String, field: BaseField[_]) <- fieldsMap.items if x(field)) map.addBinding(name, field)
 
@@ -102,7 +104,8 @@ class Form(val parsed: Element) {
     fields.addBinding(field.name, field)
   }
 
-  def submitFields: SortedMultiMap[String, BaseField[_]] = Form.filterFields(this.fields, field => field.isInstanceOf[Submit])
+  def submitFields: SortedMultiMap[String, BaseField[_]] =
+    Form.filterFields(this.fields, field => field.isInstanceOf[Submit])
 
   def keys: List[String] = fields.keys.toList
 
