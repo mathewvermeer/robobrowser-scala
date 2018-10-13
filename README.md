@@ -46,9 +46,21 @@ aboutProduct = browser.select("#feature-bullets").text()
 println(aboutProduct) //This fits your . Make sure this fits by entering [...]
 ```
 
+## Dependencies
 
-### TODO
+This project uses the following two libraries:
+
+- [Requests-Scala](https://github.com/lihaoyi/requests-scala)
+- [Jsoup](http://jsoup.org/)
+ 
+## TODO
 
 The following functionalities are still under development:
 - caching
 - connection retries
+
+## Disclaimer
+
+Though I love Scala, I am by no means an expert with this language.
+Much of the code may or may not be entirely idiomatic.
+Any and all pointers are welcome.
