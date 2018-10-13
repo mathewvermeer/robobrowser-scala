@@ -1,20 +1,13 @@
 package robobrowser.forms
 
-import java.io.File
-
 import org.jsoup.nodes.Element
 
 import scala.collection.JavaConverters._
 
-trait BaseField[A] {
+trait BaseField {
   val parsed: List[Element]
-  protected var _value: Option[A] = None
   val name: String = getName(parsed)
   val payloadKey: Option[String] = None
-
-  def value: A
-
-  def value_=(value: A): Unit = _value = Option(value)
 
   protected def getName(p: List[Element]): String = {
     val elem = p.head
@@ -29,34 +22,26 @@ trait BaseField[A] {
   def serialize: List[(String, String)]
 }
 
-case class Input(parsed: List[Element]) extends BaseField[String] {
-  value = parsed.head.`val`()
+trait SingleValueField extends BaseField {
+  protected var _value: Option[String] = None
 
-  override def value: String = _value getOrElse ""
+  def value: String = _value getOrElse ""
 
-  override def serialize: List[(String, String)] = List((name, value))
+  def value_=(value: String): Unit = this._value = Some(value)
 }
 
-case class Submit(parsed: List[Element]) extends BaseField[String] {
-  value = parsed.head.`val`()
+trait MultiValueField extends BaseField {
+  protected var _value: Option[List[String]] = None
 
-  override def value: String = _value getOrElse ""
+  def value: List[String] = _value getOrElse List[String]()
 
-  override def serialize: List[(String, String)] = List((name, value))
+  def value_=(value: List[String]): Unit = this._value = Some(value)
 }
 
-case class FileInput(parsed: List[Element]) extends BaseField[File] {
-  override val payloadKey: Option[String] = Option("files")
-
-  override def value: File = _value get
-
-  override def serialize: List[(String, String)] = List((name, value.toString))
-}
-
-trait MultiOptionField[A] extends BaseField[A] {
-  var options: List[String] = List[String]()
-  var labels: List[String] = List[String]()
-  var initial: List[String] = List[String]()
+trait MultiOptionField extends BaseField {
+  var options: List[String] = Nil
+  var labels: List[String] = Nil
+  var initial: List[String] = Nil
   loadOptions(parsed)
   setInitial(initial)
 
@@ -64,17 +49,21 @@ trait MultiOptionField[A] extends BaseField[A] {
 
   protected def setInitial(initial: List[String])
 
-  protected def valueToIndex(value: String): Int = {
+  protected def getValueFromString(value: String): String = {
+    var index = -1
     if (options.contains(value))
-      return options.indexOf(value)
+      index = options.indexOf(value)
     else if (labels.contains(value))
-      return labels.indexOf(value)
+      index = labels.indexOf(value)
 
-    throw new Exception("Option not found in field")
+    if (index == -1)
+      throw new Exception("Option not found in field")
+
+    options(index)
   }
 }
 
-trait FlatOptionField[A] extends MultiOptionField[A] {
+trait FlatOptionField extends MultiOptionField {
   override def isDisabled: Boolean = parsed.forall(_.hasAttr("disabled"))
 
   override protected def loadOptions(parsed: List[Element]): Unit = {
@@ -100,12 +89,12 @@ trait FlatOptionField[A] extends MultiOptionField[A] {
   }
 }
 
-trait NestedOptionField[A] extends MultiOptionField[A] {
+trait NestedOptionField extends MultiOptionField {
   override def isDisabled: Boolean =
     parsed.forall(_.hasAttr("disabled")) || parsed.head.select("option").asScala.forall(_.hasAttr("disabled"))
 
   override protected def loadOptions(parsed: List[Element]): Unit = {
-    val optionsToScalaList =  parsed.head.select("option").asScala.toList
+    val optionsToScalaList = parsed.head.select("option").asScala.toList
 
     val options: List[String] = for (option: Element <- optionsToScalaList) yield {
       if (option.`val`() != "") option.`val`() else option.text()
@@ -124,33 +113,45 @@ trait NestedOptionField[A] extends MultiOptionField[A] {
   }
 }
 
-case class TextArea(parsed: List[Element]) extends BaseField[String] {
-  this.value = parsed.head.text().stripLineEnd
-
-  override def value: String = _value getOrElse ""
+case class Input(parsed: List[Element]) extends SingleValueField {
+  value = parsed.head.`val`()
 
   override def serialize: List[(String, String)] = List((name, value))
 }
 
-case class Checkbox(parsed: List[Element]) extends FlatOptionField[List[String]] {
-  override protected def setInitial(initial: List[String]): Unit = this.value = initial
+case class Submit(parsed: List[Element]) extends SingleValueField {
+  value = parsed.head.`val`()
 
-  override def value: List[String] = _value getOrElse List[String]()
-
-  override def serialize: List[(String, String)] = for (v <- value) yield (name, v)
+  override def serialize: List[(String, String)] = List((name, value))
 }
 
-case class Radio(parsed: List[Element]) extends FlatOptionField[String] {
+case class TextArea(parsed: List[Element]) extends SingleValueField {
+  value = parsed.head.`val`()
+
+  override def serialize: List[(String, String)] = List((name, value))
+}
+
+case class Checkbox(parsed: List[Element]) extends FlatOptionField with MultiValueField {
+  override def value_=(value: List[String]): Unit = _value = Some(value.map(v => getValueFromString(v)))
+
+  override protected def setInitial(initial: List[String]): Unit = this.value = initial
+
+  override def serialize: List[(String, String)] = value.map(v => (name, v))
+}
+
+case class Radio(parsed: List[Element]) extends FlatOptionField with SingleValueField {
+  override def value_=(value: String): Unit = _value = Some(getValueFromString(value))
+
   override protected def setInitial(initial: List[String]): Unit = {
     _value = if (initial.nonEmpty) Option(initial.head) else None
   }
 
-  override def value: String = _value getOrElse ""
-
   override def serialize: List[(String, String)] = List((name, value))
 }
 
-case class Select(parsed: List[Element]) extends NestedOptionField[String] {
+case class Select(parsed: List[Element]) extends NestedOptionField with SingleValueField {
+  override def value_=(value: String): Unit = _value = Some(getValueFromString(value))
+
   override protected def setInitial(initial: List[String]): Unit = {
     _value = if (initial.nonEmpty) Option(initial.head) else None
 
@@ -159,15 +160,19 @@ case class Select(parsed: List[Element]) extends NestedOptionField[String] {
     }
   }
 
-  override def value: String = _value getOrElse ""
-
   override def serialize: List[(String, String)] = List((name, value))
 }
 
-case class MultiSelect(parsed: List[Element]) extends NestedOptionField[List[String]] {
+case class MultiSelect(parsed: List[Element]) extends NestedOptionField with MultiValueField {
+  override def value_=(value: List[String]): Unit = _value = Some(value.map(v => getValueFromString(v)))
+
   override protected def setInitial(initial: List[String]): Unit = this.value = initial
 
-  override def value: List[String] = _value getOrElse List[String]()
+  override def serialize: List[(String, String)] = value.map(v => (name, v))
+}
 
-  override def serialize: List[(String, String)] = for (v <- value) yield (name, v)
+case class FileInput(parsed: List[Element]) extends SingleValueField {
+  override val payloadKey: Option[String] = Some("files")
+
+  override def serialize: List[(String, String)] = List((name, value.toString))
 }
