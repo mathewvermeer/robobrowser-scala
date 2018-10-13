@@ -58,6 +58,7 @@ This project uses the following two libraries:
 The following functionalities are still under development:
 - caching
 - connection retries
+- multipart form submissions
 
 ## Disclaimer
 
