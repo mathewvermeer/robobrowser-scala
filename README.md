@@ -16,8 +16,8 @@ browser.open("https://www.amazon.com/")
 
 // get the search form
 val formOption = browser.getForm(attrs = Option(Map("action" -> "/s/ref=nb_sb_noss")))
-val form = formOption.get match {
-  case f: Form => f
+val form = formOption match {
+  case Some(f) => f
   case _ => throw new Exception("form does not exist!")
 }
 println(form) //<RoboForm url=, field-keywords=>

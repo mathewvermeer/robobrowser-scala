@@ -143,7 +143,7 @@ case class Radio(parsed: List[Element]) extends FlatOptionField with SingleValue
   override def value_=(value: String): Unit = _value = Some(getValueFromString(value))
 
   override protected def setInitial(initial: List[String]): Unit = {
-    _value = if (initial.nonEmpty) Option(initial.head) else None
+    _value = if (initial.nonEmpty) Some(initial.head) else None
   }
 
   override def serialize: List[(String, String)] = List((name, value))
@@ -153,7 +153,7 @@ case class Select(parsed: List[Element]) extends NestedOptionField with SingleVa
   override def value_=(value: String): Unit = _value = Some(getValueFromString(value))
 
   override protected def setInitial(initial: List[String]): Unit = {
-    _value = if (initial.nonEmpty) Option(initial.head) else None
+    _value = if (initial.nonEmpty) Some(initial.head) else None
 
     if (_value.isEmpty && options.nonEmpty) {
       this.value = options.head
