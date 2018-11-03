@@ -125,6 +125,7 @@ class Browser(_session: Option[Session] = None,
       case "delete" => session.delete(url)
       case "head" => session.head(url)
       case "options" => session.options(url)
+      case _ => throw new IllegalArgumentException("invalid method")
     }
 
     updateState(response)
@@ -153,7 +154,7 @@ class Browser(_session: Option[Session] = None,
 
     val c = cursor + n
     if (c >= states.length || c < 0) {
-      throw new Exception("index out of range")
+      throw new Exception("trying to traverse too far")
     }
 
     cursor = c
